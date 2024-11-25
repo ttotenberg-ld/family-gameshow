@@ -1,22 +1,24 @@
 import React from 'react';
-import { Team } from '../types';
+import { Team, BuzzInfo } from '../types';
 import { Plus, Minus, X, Bell } from 'lucide-react';
 
 interface TeamCardProps {
   team: Team;
-  teams: Team[];  // Add teams array to compare timestamps
+  teams: Team[];
   onScoreChange: (increment: number) => void;
   onRemoveMember: (memberName: string) => void;
 }
 
 const TeamCard: React.FC<TeamCardProps> = ({ team, teams, onScoreChange, onRemoveMember }) => {
-  // Find the team that buzzed in first
-  const firstBuzz = teams
-    .filter(t => t.buzzerTimestamp !== undefined)
-    .sort((a, b) => (a.buzzerTimestamp || 0) - (b.buzzerTimestamp || 0))[0];
+  // Get all buzzes across all teams and sort by timestamp
+  const allBuzzes = teams
+    .flatMap(t => (t.buzzes || []))
+    .sort((a, b) => a.timestamp - b.timestamp);
 
-  const isBuzzedIn = team.buzzedInMember !== undefined;
-  const isFirstBuzz = firstBuzz?.name === team.name;
+  const firstBuzz = allBuzzes[0];
+  const teamBuzzes = team.buzzes || [];
+  const hasBuzzed = teamBuzzes.length > 0;
+  const isFirstBuzz = firstBuzz && teamBuzzes.some(buzz => buzz.timestamp === firstBuzz.timestamp);
   const members = team.members || [];
 
   return (
@@ -28,17 +30,24 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, teams, onScoreChange, onRemov
           alt={team.name}
           className="w-full h-full object-cover"
         />
-        {isBuzzedIn && (
+        {hasBuzzed && (
           <div className={`absolute inset-0 ${team.theme.primary} bg-opacity-75 flex items-center justify-center`}>
             <div className="text-center text-white">
               <Bell className={`w-12 h-12 mx-auto mb-2 ${isFirstBuzz ? 'animate-bounce' : ''}`} />
-              <p className="text-lg font-bold">{team.buzzedInMember}</p>
-              <p className="text-sm">{isFirstBuzz ? "First to Buzz!" : "Buzzed In!"}</p>
-              {isFirstBuzz && (
-                <div className="mt-1 px-3 py-1 bg-yellow-400 text-black rounded-full text-sm font-bold inline-block">
-                  FIRST!
-                </div>
-              )}
+              <div className="space-y-1">
+                {teamBuzzes.map((buzz, index) => (
+                  <div key={buzz.timestamp} className="flex items-center justify-center">
+                    <p className="text-lg font-bold">
+                      {buzz.memberName}
+                      {index === 0 && isFirstBuzz && (
+                        <span className="ml-2 px-2 py-0.5 bg-yellow-400 text-black text-xs rounded-full">
+                          FIRST!
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -79,7 +88,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, teams, onScoreChange, onRemov
                 >
                   <span className="flex items-center">
                     {member}
-                    {member === firstBuzz?.buzzedInMember && (
+                    {firstBuzz && firstBuzz.memberName === member && (
                       <span className="ml-2 px-2 py-0.5 bg-yellow-400 text-black text-xs rounded-full font-bold">
                         First!
                       </span>

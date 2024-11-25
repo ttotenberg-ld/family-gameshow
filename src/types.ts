@@ -1,3 +1,8 @@
+export interface BuzzInfo {
+  memberName: string;
+  timestamp: number;
+}
+
 export interface Team {
   id: number;
   name: string;
@@ -12,8 +17,7 @@ export interface Team {
     border: string;
     hover: string;
   };
-  buzzerTimestamp?: number;
-  buzzedInMember?: string;
+  buzzes?: BuzzInfo[];
 }
 
 export type WebSocketMessage = 

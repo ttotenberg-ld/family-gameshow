@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { ref, onValue, set, get, Database } from 'firebase/database';
 import { database } from '../firebase';
-import { Team } from '../types';
+import { Team, BuzzInfo } from '../types';
 
 const initialTeams: Team[] = [
   {
@@ -73,6 +73,7 @@ interface TeamsContextType {
   updateScore: (teamId: number, increment: number) => Promise<void>;
   newGame: () => Promise<void>;
   updateTeamImage: (teamName: string, imageUrl: string) => Promise<void>;
+  updateTeamName: (oldName: string, newName: string) => Promise<void>;
   buzz: (teamName: string, memberName: string, timestamp: number) => Promise<void>;
   resetBuzzers: () => Promise<void>;
 }
@@ -84,6 +85,7 @@ export const TeamsContext = createContext<TeamsContextType>({
   updateScore: async () => {},
   newGame: async () => {},
   updateTeamImage: async () => {},
+  updateTeamName: async () => {},
   buzz: async () => {},
   resetBuzzers: async () => {},
 });
@@ -115,7 +117,8 @@ export const TeamsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           // Ensure members array exists for each team
           const teamsWithMembers = Object.values(data as Record<string, Partial<Team>>).map((team) => ({
             ...team,
-            members: team.members || []
+            members: team.members || [],
+            buzzes: team.buzzes || []
           }));
           setTeams(teamsWithMembers as Team[]);
         } else {
@@ -200,28 +203,38 @@ export const TeamsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     await updateTeams(newTeams);
   };
 
+  const updateTeamName = async (oldName: string, newName: string) => {
+    const currentTeams = [...teams];
+    const newTeams = currentTeams.map(team =>
+      team.name === oldName
+        ? { ...team, name: newName }
+        : team
+    );
+    await updateTeams(newTeams);
+  };
+
   const buzz = async (teamName: string, memberName: string, timestamp: number) => {
-    const anyoneBuzzed = teams.some(t => t.buzzedInMember !== undefined);
-    if (!anyoneBuzzed) {
-      const currentTeams = [...teams];
-      const newTeams = currentTeams.map(team =>
-        team.name === teamName
-          ? { ...team, buzzedInMember: memberName, buzzerTimestamp: timestamp }
-          : team
-      );
-      await updateTeams(newTeams);
-    }
+    const currentTeams = [...teams];
+    const newTeams = currentTeams.map(team => {
+      if (team.name === teamName) {
+        const newBuzz: BuzzInfo = { memberName, timestamp };
+        return {
+          ...team,
+          buzzes: [...(team.buzzes || []), newBuzz]
+        };
+      }
+      return team;
+    });
+    await updateTeams(newTeams);
   };
 
   const resetBuzzers = async () => {
     try {
       const currentTeams = [...teams];
-      const newTeams = currentTeams.map(team => {
-        const cleanTeam = { ...team };
-        delete cleanTeam.buzzedInMember;
-        delete cleanTeam.buzzerTimestamp;
-        return cleanTeam;
-      });
+      const newTeams = currentTeams.map(team => ({
+        ...team,
+        buzzes: []
+      }));
       await updateTeams(newTeams);
       console.log('Buzzers reset successfully');
     } catch (error) {
@@ -241,6 +254,7 @@ export const TeamsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     updateScore,
     newGame,
     updateTeamImage,
+    updateTeamName,
     buzz,
     resetBuzzers
   };
