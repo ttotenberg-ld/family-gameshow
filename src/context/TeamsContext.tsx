@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { ref, onValue, set, get, Database } from 'firebase/database';
 import { database } from '../firebase';
-import { Team, BuzzInfo } from '../types';
+import { Team, BuzzInfo, GameState } from '../types';
 
 const initialTeams: Team[] = [
   {
@@ -66,35 +66,45 @@ const initialTeams: Team[] = [
   }
 ];
 
+const initialGameState: GameState = {
+  roundNumber: 1,
+  roundText: ''
+};
+
 interface TeamsContextType {
   teams: Team[];
+  gameState: GameState;
   addTeamMember: (teamName: string, playerName: string) => Promise<void>;
   removeMember: (teamName: string, memberName: string) => Promise<void>;
   updateScore: (teamId: number, increment: number) => Promise<void>;
   newGame: () => Promise<void>;
   updateTeamImage: (teamName: string, imageUrl: string) => Promise<void>;
   updateTeamName: (oldName: string, newName: string) => Promise<void>;
+  updateGameState: (updates: Partial<GameState>) => Promise<void>;
   buzz: (teamName: string, memberName: string, timestamp: number) => Promise<void>;
   resetBuzzers: () => Promise<void>;
 }
 
 export const TeamsContext = createContext<TeamsContextType>({
   teams: [],
+  gameState: initialGameState,
   addTeamMember: async () => {},
   removeMember: async () => {},
   updateScore: async () => {},
   newGame: async () => {},
   updateTeamImage: async () => {},
   updateTeamName: async () => {},
+  updateGameState: async () => {},
   buzz: async () => {},
   resetBuzzers: async () => {},
 });
 
 export const TeamsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [teams, setTeams] = useState<Team[]>([]);
+  const [gameState, setGameState] = useState<GameState>(initialGameState);
   const teamsRef = ref(database as Database, 'teams');
+  const gameStateRef = ref(database as Database, 'gameState');
 
-  // Initialize teams data if it doesn't exist
   useEffect(() => {
     let mounted = true;
 
@@ -109,12 +119,22 @@ export const TeamsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     };
 
-    // Set up realtime listener
-    const unsubscribe = onValue(teamsRef, (snapshot) => {
+    const initializeGameState = async () => {
+      try {
+        const snapshot = await get(gameStateRef);
+        if (!snapshot.exists()) {
+          await set(gameStateRef, initialGameState);
+        }
+      } catch (error) {
+        console.error('Error initializing game state:', error);
+      }
+    };
+
+    // Set up realtime listeners
+    const unsubscribeTeams = onValue(teamsRef, (snapshot) => {
       if (mounted) {
         const data = snapshot.val();
         if (data) {
-          // Ensure members array exists for each team
           const teamsWithMembers = Object.values(data as Record<string, Partial<Team>>).map((team) => ({
             ...team,
             members: team.members || [],
@@ -122,7 +142,6 @@ export const TeamsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }));
           setTeams(teamsWithMembers as Team[]);
         } else {
-          // If no data exists, initialize with default teams
           initializeTeams();
         }
       }
@@ -130,9 +149,23 @@ export const TeamsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.error('Error listening to teams updates:', error);
     });
 
+    const unsubscribeGameState = onValue(gameStateRef, (snapshot) => {
+      if (mounted) {
+        const data = snapshot.val();
+        if (data) {
+          setGameState(data as GameState);
+        } else {
+          initializeGameState();
+        }
+      }
+    }, (error) => {
+      console.error('Error listening to game state updates:', error);
+    });
+
     return () => {
       mounted = false;
-      unsubscribe();
+      unsubscribeTeams();
+      unsubscribeGameState();
     };
   }, []);
 
@@ -141,6 +174,16 @@ export const TeamsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await set(teamsRef, newTeams);
     } catch (error) {
       console.error('Error updating teams:', error);
+      throw error;
+    }
+  };
+
+  const updateGameState = async (updates: Partial<GameState>) => {
+    try {
+      const newGameState = { ...gameState, ...updates };
+      await set(gameStateRef, newGameState);
+    } catch (error) {
+      console.error('Error updating game state:', error);
       throw error;
     }
   };
@@ -154,7 +197,6 @@ export const TeamsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         throw new Error(`Team ${teamName} not found`);
       }
 
-      // Create a new array with the updated team
       const newTeams = currentTeams.map((team, index) => {
         if (index === teamIndex) {
           return {
@@ -165,7 +207,6 @@ export const TeamsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return team;
       });
 
-      // Update Firebase
       await updateTeams(newTeams);
     } catch (error) {
       console.error('Error adding team member:', error);
@@ -245,16 +286,19 @@ export const TeamsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const newGame = async () => {
     await updateTeams(initialTeams);
+    await updateGameState(initialGameState);
   };
 
   const contextValue = {
     teams,
+    gameState,
     addTeamMember,
     removeMember,
     updateScore,
     newGame,
     updateTeamImage,
     updateTeamName,
+    updateGameState,
     buzz,
     resetBuzzers
   };

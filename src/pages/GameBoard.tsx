@@ -1,26 +1,24 @@
-import React, { useState } from 'react';
-import { QrCode, RotateCcw } from 'lucide-react';
+import React, { useState, useContext } from 'react';
+import { QrCode, RotateCcw, ChevronUp, ChevronDown } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import TeamCard from '../components/TeamCard';
 import Logo from '../components/Logo';
 import { TeamsContext } from '../context/TeamsContext';
 
-const DEFAULT_LOGO_URL = 'https://placehold.co/800x1000/1f2937/ffffff?text=Game+Logo';
-
 const GameBoard: React.FC = () => {
   const [showQR, setShowQR] = useState(false);
   const [logoUrl, setLogoUrl] = useState(() => {
     const savedLogo = localStorage.getItem('gameLogoUrl');
-    return savedLogo || DEFAULT_LOGO_URL;
+    return savedLogo || 'https://placehold.co/800x1000/1f2937/ffffff?text=Game+Logo';
   });
   
-  const { teams, updateScore, removeMember, newGame, resetBuzzers } = React.useContext(TeamsContext);
+  const { teams, gameState, updateGameState, updateScore, removeMember, newGame, resetBuzzers } = useContext(TeamsContext);
   const baseUrl = window.location.origin + import.meta.env.BASE_URL;
   const joinUrl = `${baseUrl}#/join`;
 
   const handleNewGame = () => {
     if (window.confirm('Are you sure you want to start a new game? This will reset all scores and team members.')) {
-      setLogoUrl(DEFAULT_LOGO_URL);
+      setLogoUrl('https://placehold.co/800x1000/1f2937/ffffff?text=Game+Logo');
       localStorage.removeItem('gameLogoUrl');
       newGame();
     }
@@ -35,17 +33,45 @@ const GameBoard: React.FC = () => {
     localStorage.setItem('gameLogoUrl', newUrl);
   };
 
-  const triggerLogoUpload = () => {
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    if (fileInput) {
-      fileInput.click();
-    }
+  const handleRoundChange = (increment: number) => {
+    updateGameState({
+      roundNumber: Math.max(1, gameState.roundNumber + increment)
+    });
   };
 
   return (
     <div className="h-screen bg-gray-900 p-4 overflow-hidden">
       <div className="h-full max-w-7xl mx-auto flex flex-col">
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center bg-gray-800 rounded-lg p-2">
+              <div className="flex items-center mr-4">
+                <span className="text-white font-bold mr-2">Round</span>
+                <span className="text-white text-xl font-bold mr-2">{gameState.roundNumber}</span>
+                <div className="flex flex-col">
+                  <button
+                    onClick={() => handleRoundChange(1)}
+                    className="text-gray-400 hover:text-white p-0.5"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleRoundChange(-1)}
+                    className="text-gray-400 hover:text-white p-0.5"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <input
+                type="text"
+                value={gameState.roundText}
+                onChange={(e) => updateGameState({ roundText: e.target.value })}
+                className="bg-gray-700 text-white px-3 py-1 rounded w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Round description..."
+              />
+            </div>
+          </div>
           <div className="flex items-center space-x-4">
             <button
               onClick={handleResetBuzzers}
@@ -91,14 +117,6 @@ const GameBoard: React.FC = () => {
         <div className="flex-grow min-h-0 flex items-center justify-center gap-4">
           <div className="w-1/2 h-full">
             <Logo imageUrl={logoUrl} onImageChange={handleLogoChange} />
-          </div>
-          <div className="flex flex-col justify-center">
-            <button
-              onClick={triggerLogoUpload}
-              className="px-6 py-3 bg-blue-600 text-white text-lg font-semibold rounded-lg shadow-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
-            >
-              Change Logo
-            </button>
           </div>
         </div>
         

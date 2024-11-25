@@ -20,6 +20,11 @@ export interface Team {
   buzzes?: BuzzInfo[];
 }
 
+export interface GameState {
+  roundNumber: number;
+  roundText: string;
+}
+
 export type WebSocketMessage = 
   | { type: 'init'; teams: Team[] }
   | { type: 'update'; teams: Team[] }
