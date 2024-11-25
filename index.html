@@ -1,12 +1,27 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
-    <script type="module" crossorigin src="/family-gameshow/assets/index-Bp1605fC.js"></script>
-    <link rel="stylesheet" crossorigin href="/family-gameshow/assets/index-BUeJpCr0.css">
+    <title>Family Gameshow</title>
+    <script>
+      // Check if we need to redirect
+      (function() {
+        const redirect = sessionStorage.getItem('redirect');
+        if (redirect) {
+          sessionStorage.removeItem('redirect');
+          const baseUrl = '/family-gameshow';
+          if (redirect.startsWith(baseUrl)) {
+            history.replaceState(null, null, redirect);
+          } else {
+            history.replaceState(null, null, baseUrl + '/' + redirect);
+          }
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/family-gameshow/assets/index-CnmLVDS7.js"></script>
+    <link rel="stylesheet" crossorigin href="/family-gameshow/assets/index-B5JYQWpY.css">
   </head>
   <body>
     <div id="root"></div>
