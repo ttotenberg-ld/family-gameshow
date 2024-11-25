@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Redirecting...</title>
+  <script>
+    // Get the current path and query string
+    const path = window.location.pathname.slice(1);
+    const query = window.location.search;
+    
+    // Store the full path in the session storage
+    sessionStorage.setItem('redirect', path + query);
+    
+    // Redirect to the root
+    window.location.href = '/family-gameshow/';
+  </script>
+</head>
+<body>
+  Redirecting...
+</body>
+</html>

@@ -17,6 +17,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, teams, onScoreChange, onRemov
 
   const isBuzzedIn = team.buzzedInMember !== undefined;
   const isFirstBuzz = firstBuzz?.name === team.name;
+  const members = team.members || [];
 
   return (
     <div className={`rounded-lg overflow-hidden ${team.theme.secondary}`}>
@@ -55,7 +56,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, teams, onScoreChange, onRemov
           >
             <Minus className="w-5 h-5" />
           </button>
-          <span className={`text-2xl font-bold ${team.theme.text}`}>{team.score}</span>
+          <span className={`text-2xl font-bold ${team.theme.text}`}>{team.score || 0}</span>
           <button
             onClick={() => onScoreChange(1)}
             className={`${team.theme.primary} ${team.theme.hover} text-white p-2 rounded-full`}
@@ -67,11 +68,11 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, teams, onScoreChange, onRemov
         {/* Team Members */}
         <div className="space-y-2">
           <h3 className={`text-sm font-semibold ${team.theme.text}`}>Team Members:</h3>
-          {team.members.length === 0 ? (
+          {members.length === 0 ? (
             <p className="text-sm text-gray-500 italic">No members yet</p>
           ) : (
             <ul className="space-y-1">
-              {team.members.map((member) => (
+              {members.map((member) => (
                 <li 
                   key={member}
                   className={`flex items-center justify-between ${team.theme.text} text-sm`}

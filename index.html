@@ -1,10 +1,25 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
+    <title>Family Gameshow</title>
+    <script>
+      // Check if we need to redirect
+      (function() {
+        const redirect = sessionStorage.getItem('redirect');
+        if (redirect) {
+          sessionStorage.removeItem('redirect');
+          const baseUrl = '/family-gameshow';
+          if (redirect.startsWith(baseUrl)) {
+            history.replaceState(null, null, redirect);
+          } else {
+            history.replaceState(null, null, baseUrl + '/' + redirect);
+          }
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref } from 'firebase/database';
+import { getDatabase, ref, Database } from 'firebase/database';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -11,9 +11,31 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Initialize Firebase
-export const app = initializeApp(firebaseConfig);
-export const database = getDatabase(app);
+// Debug logging for environment variables
+Object.entries(firebaseConfig).forEach(([key, value]) => {
+  console.log(`Firebase ${key}:`, value ? '[PRESENT]' : '[MISSING]');
+});
 
-// Reference to the teams data
-export const teamsRef = ref(database, 'teams');
+let app;
+let database: Database;
+let teamsRef;
+
+try {
+  // Initialize Firebase
+  console.log('Initializing Firebase...');
+  app = initializeApp(firebaseConfig);
+  console.log('Firebase initialized successfully');
+
+  console.log('Connecting to Realtime Database...');
+  database = getDatabase(app);
+  console.log('Database connected successfully');
+
+  // Reference to the teams data
+  teamsRef = ref(database, 'teams');
+  console.log('Teams reference created successfully');
+} catch (error) {
+  console.error('Error initializing Firebase:', error);
+  throw error;
+}
+
+export { app, database, teamsRef };

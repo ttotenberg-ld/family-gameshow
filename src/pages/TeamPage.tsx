@@ -8,39 +8,38 @@ const TeamPage: React.FC = () => {
   const { teams, updateTeamImage, buzz } = useContext(TeamsContext);
   const [isBuzzed, setIsBuzzed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadingMessage, setLoadingMessage] = useState('Connecting to server...');
+  const [shouldRedirect, setShouldRedirect] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const decodedTeamName = decodeURIComponent(teamName || '');
   const decodedPlayerName = decodeURIComponent(playerName || '');
+  const loadingTimeoutRef = useRef<NodeJS.Timeout>();
   
   // Wait for teams data to be loaded
   useEffect(() => {
-    console.log('Teams state updated:', teams);
     if (teams.length > 0) {
-      console.log('Teams loaded, checking membership...');
-      const team = teams.find(t => t.name === teamName);
+      const team = teams.find(t => t.name === decodedTeamName);
       if (team) {
-        console.log('Found team:', team.name);
-        console.log('Team members:', team.members);
-        console.log('Looking for player:', decodedPlayerName);
         if (team.members.includes(decodedPlayerName)) {
-          console.log('Player found in team');
-          setLoadingMessage('Connected!');
           setIsLoading(false);
         } else {
-          console.log('Player not found in team members');
-          setLoadingMessage('Verifying team membership...');
+          // Give Firebase a chance to sync data
+          loadingTimeoutRef.current = setTimeout(() => {
+            setShouldRedirect(true);
+          }, 2000);
         }
       } else {
-        console.log('Team not found');
-        setLoadingMessage('Verifying team...');
+        setShouldRedirect(true);
       }
-    } else {
-      console.log('Waiting for teams data...');
-      setLoadingMessage('Loading teams data...');
     }
-  }, [teams, teamName, decodedPlayerName]);
 
-  const team = teams.find(t => t.name === teamName);
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, [teams, decodedTeamName, decodedPlayerName]);
+
+  const team = teams.find(t => t.name === decodedTeamName);
   
   // Effect hook for resetting buzz state
   useEffect(() => {
@@ -50,11 +49,11 @@ const TeamPage: React.FC = () => {
   }, [team?.buzzedInMember]);
 
   // Show loading state
-  if (isLoading) {
+  if (isLoading && !shouldRedirect) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-white text-xl mb-4">{loadingMessage}</div>
+          <div className="text-white text-xl mb-4">Verifying team membership...</div>
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
         </div>
       </div>
@@ -62,11 +61,7 @@ const TeamPage: React.FC = () => {
   }
 
   // Redirect if team or player not found
-  if (!team || !team.members.includes(decodedPlayerName)) {
-    console.log('Final check failed - redirecting to join');
-    console.log('Current teams state:', teams);
-    console.log('Looking for team:', teamName);
-    console.log('Looking for player:', decodedPlayerName);
+  if (shouldRedirect || !team || !team.members.includes(decodedPlayerName)) {
     return <Navigate to="/join" replace />;
   }
 

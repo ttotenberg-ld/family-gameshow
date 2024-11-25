@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
-import { ref, onValue, set, get } from 'firebase/database';
+import { ref, onValue, set, get, Database } from 'firebase/database';
 import { database } from '../firebase';
 import { Team } from '../types';
 
@@ -68,86 +68,131 @@ const initialTeams: Team[] = [
 
 interface TeamsContextType {
   teams: Team[];
-  addTeamMember: (teamName: string, playerName: string) => void;
-  removeMember: (teamName: string, memberName: string) => void;
-  updateScore: (teamId: number, increment: number) => void;
-  newGame: () => void;
-  updateTeamImage: (teamName: string, imageUrl: string) => void;
-  buzz: (teamName: string, memberName: string, timestamp: number) => void;
-  resetBuzzers: () => void;
+  addTeamMember: (teamName: string, playerName: string) => Promise<void>;
+  removeMember: (teamName: string, memberName: string) => Promise<void>;
+  updateScore: (teamId: number, increment: number) => Promise<void>;
+  newGame: () => Promise<void>;
+  updateTeamImage: (teamName: string, imageUrl: string) => Promise<void>;
+  buzz: (teamName: string, memberName: string, timestamp: number) => Promise<void>;
+  resetBuzzers: () => Promise<void>;
 }
 
 export const TeamsContext = createContext<TeamsContextType>({
   teams: [],
-  addTeamMember: () => {},
-  removeMember: () => {},
-  updateScore: () => {},
-  newGame: () => {},
-  updateTeamImage: () => {},
-  buzz: () => {},
-  resetBuzzers: () => {},
+  addTeamMember: async () => {},
+  removeMember: async () => {},
+  updateScore: async () => {},
+  newGame: async () => {},
+  updateTeamImage: async () => {},
+  buzz: async () => {},
+  resetBuzzers: async () => {},
 });
 
 export const TeamsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [teams, setTeams] = useState<Team[]>([]);
-  const teamsRef = ref(database, 'teams');
+  const teamsRef = ref(database as Database, 'teams');
 
   // Initialize teams data if it doesn't exist
   useEffect(() => {
+    let mounted = true;
+
     const initializeTeams = async () => {
-      const snapshot = await get(teamsRef);
-      if (!snapshot.exists()) {
-        await set(teamsRef, initialTeams);
+      try {
+        const snapshot = await get(teamsRef);
+        if (!snapshot.exists()) {
+          await set(teamsRef, initialTeams);
+        }
+      } catch (error) {
+        console.error('Error initializing teams:', error);
       }
     };
-    initializeTeams();
-  }, []);
 
-  // Listen for teams updates
-  useEffect(() => {
+    // Set up realtime listener
     const unsubscribe = onValue(teamsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        setTeams(data);
+      if (mounted) {
+        const data = snapshot.val();
+        if (data) {
+          // Ensure members array exists for each team
+          const teamsWithMembers = Object.values(data as Record<string, Partial<Team>>).map((team) => ({
+            ...team,
+            members: team.members || []
+          }));
+          setTeams(teamsWithMembers as Team[]);
+        } else {
+          // If no data exists, initialize with default teams
+          initializeTeams();
+        }
       }
+    }, (error) => {
+      console.error('Error listening to teams updates:', error);
     });
 
-    return () => unsubscribe();
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, []);
 
   const updateTeams = async (newTeams: Team[]) => {
-    await set(teamsRef, newTeams);
+    try {
+      await set(teamsRef, newTeams);
+    } catch (error) {
+      console.error('Error updating teams:', error);
+      throw error;
+    }
   };
 
   const addTeamMember = async (teamName: string, playerName: string) => {
-    const newTeams = teams.map(team =>
-      team.name === teamName
-        ? { ...team, members: [...team.members, playerName] }
-        : team
-    );
-    await updateTeams(newTeams);
+    try {
+      const currentTeams = [...teams];
+      const teamIndex = currentTeams.findIndex(team => team.name === teamName);
+      
+      if (teamIndex === -1) {
+        throw new Error(`Team ${teamName} not found`);
+      }
+
+      // Create a new array with the updated team
+      const newTeams = currentTeams.map((team, index) => {
+        if (index === teamIndex) {
+          return {
+            ...team,
+            members: [...(team.members || []), playerName]
+          };
+        }
+        return team;
+      });
+
+      // Update Firebase
+      await updateTeams(newTeams);
+    } catch (error) {
+      console.error('Error adding team member:', error);
+      throw error;
+    }
   };
 
   const removeMember = async (teamName: string, memberName: string) => {
-    const newTeams = teams.map(team =>
+    const currentTeams = [...teams];
+    const newTeams = currentTeams.map(team =>
       team.name === teamName
-        ? { ...team, members: team.members.filter(member => member !== memberName) }
+        ? { ...team, members: (team.members || []).filter(member => member !== memberName) }
         : team
     );
     await updateTeams(newTeams);
   };
 
   const updateScore = async (teamId: number, increment: number) => {
-    const newTeams = teams.map(team =>
+    const currentTeams = [...teams];
+    const newTeams = currentTeams.map(team =>
       team.id === teamId
-        ? { ...team, score: Math.max(0, team.score + increment) }
+        ? { ...team, score: Math.max(0, (team.score || 0) + increment) }
         : team
     );
     await updateTeams(newTeams);
   };
 
   const updateTeamImage = async (teamName: string, imageUrl: string) => {
-    const newTeams = teams.map(team =>
+    const currentTeams = [...teams];
+    const newTeams = currentTeams.map(team =>
       team.name === teamName
         ? { ...team, image: imageUrl }
         : team
@@ -156,10 +201,10 @@ export const TeamsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const buzz = async (teamName: string, memberName: string, timestamp: number) => {
-    // Only update if no one has buzzed in yet
     const anyoneBuzzed = teams.some(t => t.buzzedInMember !== undefined);
     if (!anyoneBuzzed) {
-      const newTeams = teams.map(team =>
+      const currentTeams = [...teams];
+      const newTeams = currentTeams.map(team =>
         team.name === teamName
           ? { ...team, buzzedInMember: memberName, buzzerTimestamp: timestamp }
           : team
@@ -169,12 +214,20 @@ export const TeamsProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const resetBuzzers = async () => {
-    const newTeams = teams.map(team => ({
-      ...team,
-      buzzedInMember: undefined,
-      buzzerTimestamp: undefined
-    }));
-    await updateTeams(newTeams);
+    try {
+      const currentTeams = [...teams];
+      const newTeams = currentTeams.map(team => {
+        const cleanTeam = { ...team };
+        delete cleanTeam.buzzedInMember;
+        delete cleanTeam.buzzerTimestamp;
+        return cleanTeam;
+      });
+      await updateTeams(newTeams);
+      console.log('Buzzers reset successfully');
+    } catch (error) {
+      console.error('Error resetting buzzers:', error);
+      throw error;
+    }
   };
 
   const newGame = async () => {
