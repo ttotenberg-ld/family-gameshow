@@ -7,7 +7,6 @@ const TeamPage: React.FC = () => {
   const navigate = useNavigate();
   const { teamName, playerName } = useParams<{ teamName: string; playerName: string }>();
   const { teams, updateTeamImage, updateTeamName, buzz } = useContext(TeamsContext);
-  const [isBuzzed, setIsBuzzed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [shouldRedirect, setShouldRedirect] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -48,12 +47,6 @@ const TeamPage: React.FC = () => {
   }, [teams, decodedTeamName, decodedPlayerName, navigate]);
 
   const team = teams.find(t => t.name === decodedTeamName);
-  
-  useEffect(() => {
-    if (team && (!team.buzzes || team.buzzes.length === 0)) {
-      setIsBuzzed(false);
-    }
-  }, [team?.buzzes]);
 
   if (isLoading && !shouldRedirect) {
     return (
@@ -94,18 +87,21 @@ const TeamPage: React.FC = () => {
   };
 
   const handleBuzz = () => {
-    if (!isBuzzed) {
+    // Check if any team has buzzes - if so, we're in a locked state
+    const anyTeamBuzzed = teams.some(t => t.buzzes && t.buzzes.length > 0);
+    if (!anyTeamBuzzed) {
       const timestamp = Date.now();
       buzz(team.name, decodedPlayerName, timestamp);
-      setIsBuzzed(true);
     }
   };
 
   const getBuzzerState = () => {
+    // Get all buzzes across all teams
     const allBuzzes = teams.flatMap(t => t.buzzes || []).sort((a, b) => a.timestamp - b.timestamp);
     const firstBuzz = allBuzzes[0];
     const playerHasBuzzed = team.buzzes?.some(b => b.memberName === decodedPlayerName);
     const isFirstBuzzer = firstBuzz && firstBuzz.memberName === decodedPlayerName;
+    const anyTeamBuzzed = allBuzzes.length > 0;
 
     if (playerHasBuzzed) {
       return {
@@ -127,16 +123,16 @@ const TeamPage: React.FC = () => {
       };
     }
 
-    if (isBuzzed) {
+    if (anyTeamBuzzed) {
       return {
         disabled: true,
         content: (
           <div className="flex flex-col items-center">
-            <Bell className="w-12 h-12 animate-bounce" />
-            <span className="mt-2">Buzzing...</span>
+            <Bell className="w-12 h-12 opacity-50" />
+            <span className="mt-2">Locked</span>
           </div>
         ),
-        className: `${team.theme.primary}`
+        className: `${team.theme.primary} opacity-50`
       };
     }
 

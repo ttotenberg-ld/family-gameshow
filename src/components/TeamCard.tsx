@@ -1,5 +1,5 @@
 import React from 'react';
-import { Team, BuzzInfo } from '../types';
+import { Team } from '../types';
 import { Plus, Minus, X, Bell } from 'lucide-react';
 
 interface TeamCardProps {
@@ -21,6 +21,19 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, teams, onScoreChange, onRemov
   const isFirstBuzz = firstBuzz && teamBuzzes.some(buzz => buzz.timestamp === firstBuzz.timestamp);
   const members = team.members || [];
 
+  // Get buzz order numbers for this team's buzzes
+  const getBuzzOrder = (timestamp: number) => {
+    return allBuzzes.findIndex(buzz => buzz.timestamp === timestamp) + 1;
+  };
+
+  // Format timestamp difference from first buzz
+  const getTimeDiff = (timestamp: number) => {
+    if (!firstBuzz) return '';
+    const diff = timestamp - firstBuzz.timestamp;
+    if (diff === 0) return '';
+    return `+${diff}ms`;
+  };
+
   return (
     <div className={`rounded-lg overflow-hidden ${team.theme.secondary}`}>
       {/* Team Image */}
@@ -35,18 +48,30 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, teams, onScoreChange, onRemov
             <div className="text-center text-white">
               <Bell className={`w-12 h-12 mx-auto mb-2 ${isFirstBuzz ? 'animate-bounce' : ''}`} />
               <div className="space-y-1">
-                {teamBuzzes.map((buzz, index) => (
-                  <div key={buzz.timestamp} className="flex items-center justify-center">
-                    <p className="text-lg font-bold">
-                      {buzz.memberName}
-                      {index === 0 && isFirstBuzz && (
-                        <span className="ml-2 px-2 py-0.5 bg-yellow-400 text-black text-xs rounded-full">
-                          FIRST!
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                ))}
+                {teamBuzzes.map((buzz) => {
+                  const order = getBuzzOrder(buzz.timestamp);
+                  const timeDiff = getTimeDiff(buzz.timestamp);
+                  return (
+                    <div key={buzz.timestamp} className="flex items-center justify-center space-x-2">
+                      <span className="bg-white text-black text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                        {order}
+                      </span>
+                      <p className="text-lg font-bold">
+                        {buzz.memberName}
+                        {order === 1 && (
+                          <span className="ml-2 px-2 py-0.5 bg-yellow-400 text-black text-xs rounded-full">
+                            FIRST!
+                          </span>
+                        )}
+                        {timeDiff && (
+                          <span className="ml-2 text-xs opacity-75">
+                            {timeDiff}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -81,27 +106,33 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, teams, onScoreChange, onRemov
             <p className="text-sm text-gray-500 italic">No members yet</p>
           ) : (
             <ul className="space-y-1">
-              {members.map((member) => (
-                <li 
-                  key={member}
-                  className={`flex items-center justify-between ${team.theme.text} text-sm`}
-                >
-                  <span className="flex items-center">
-                    {member}
-                    {firstBuzz && firstBuzz.memberName === member && (
-                      <span className="ml-2 px-2 py-0.5 bg-yellow-400 text-black text-xs rounded-full font-bold">
-                        First!
-                      </span>
-                    )}
-                  </span>
-                  <button
-                    onClick={() => onRemoveMember(member)}
-                    className={`${team.theme.primary} ${team.theme.hover} text-white p-1 rounded-full`}
+              {members.map((member) => {
+                const memberBuzz = teamBuzzes.find(b => b.memberName === member);
+                const order = memberBuzz ? getBuzzOrder(memberBuzz.timestamp) : null;
+                return (
+                  <li 
+                    key={member}
+                    className={`flex items-center justify-between ${team.theme.text} text-sm`}
                   >
-                    <X className="w-4 h-4" />
-                  </button>
-                </li>
-              ))}
+                    <span className="flex items-center">
+                      {member}
+                      {order && (
+                        <span className={`ml-2 px-2 py-0.5 ${
+                          order === 1 ? 'bg-yellow-400' : 'bg-gray-200'
+                        } text-black text-xs rounded-full font-bold`}>
+                          #{order}
+                        </span>
+                      )}
+                    </span>
+                    <button
+                      onClick={() => onRemoveMember(member)}
+                      className={`${team.theme.primary} ${team.theme.hover} text-white p-1 rounded-full`}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
