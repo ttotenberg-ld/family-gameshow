@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useFlags } from "launchdarkly-react-client-sdk";
 
 interface SoundButton {
   name: string;
@@ -26,6 +27,8 @@ const sounds: SoundButton[] = [
 
 export default function Soundboard() {
   // Create a map to store preloaded audio objects
+  const { showSoundboard } = useFlags();
+
   const [audioMap] = useState<Map<string, HTMLAudioElement>>(() => {
     const map = new Map();
     sounds.forEach(sound => {
@@ -64,7 +67,7 @@ export default function Soundboard() {
     }
   };
 
-  return (
+  return showSoundboard ? (
     <div className="flex flex-wrap gap-4 p-4 bg-gray-100 rounded-lg shadow-md">
       <h2 className="w-full text-xl font-bold mb-2">Soundboard</h2>
       <div className="flex flex-wrap gap-2">
@@ -81,5 +84,7 @@ export default function Soundboard() {
         ))}
       </div>
     </div>
-  );
+    ) : (
+    <div />
+    );
 } 
