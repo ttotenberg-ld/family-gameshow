@@ -4,6 +4,7 @@ import QRCode from 'react-qr-code';
 import TeamCard from '../components/TeamCard';
 import Logo from '../components/Logo';
 import { TeamsContext } from '../context/TeamsContext';
+import Soundboard from '../components/Soundboard';
 
 const GameBoard: React.FC = () => {
   const [showQR, setShowQR] = useState(false);
@@ -114,9 +115,12 @@ const GameBoard: React.FC = () => {
           </h1>
         </div>
 
-        <div className="flex-grow min-h-0 flex items-center justify-center gap-4">
+        <div className="flex-grow min-h-0 flex items-center justify-center gap-8">
           <div className="w-1/2 h-full">
             <Logo imageUrl={logoUrl} onImageChange={handleLogoChange} />
+          </div>
+          <div className="w-1/2 h-full flex items-center">
+            <Soundboard />
           </div>
         </div>
         
