@@ -5,7 +5,7 @@ import './index.css';
 
 const initializeLaunchDarkly = async () => {
   const LDProvider = await asyncWithLDProvider({
-    clientSideID: '609ead905193530d7c28647b',
+    clientSideID: '60685c73c0d09d0d2bda4d80',
     context: {
       "kind": "user",
       "key": "user-key-123abc",
